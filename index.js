@@ -1,6 +1,7 @@
 const express = require('express');
 const { default: mongoose } = require('mongoose');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 const jwt = require('jsonwebtoken'); // Para gerar e verificar tokens JWT
 const Cliente = require('./models/Cliente');
@@ -148,15 +149,14 @@ app.get("/produto", async (req, res) => {
 });
 
 // Conexão com o MongoDB
-mongoose.connect("mongodb://localhost:27017/seuBancoDeDados", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log("Conexão com o MongoDB estabelecida!");
-    app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
-}).catch((err) => {
-    console.error("Erro ao conectar ao MongoDB:", err);
-});
+mongoose.connect("mongodb://localhost:27017/seuBancoDeDados")
+    .then(() => {
+        console.log("Conexão com o MongoDB estabelecida!");
+        app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
+    })
+    .catch((err) => {
+        console.error("Erro ao conectar ao MongoDB:", err);
+    });
 
 // Read Cliente by id
 app.get("/cliente/:id", async (req, res) => {
@@ -203,7 +203,7 @@ app.get("/produto/:id", async (req, res) => {
 // Update Cliente
 app.patch("/cliente/:id", async (req, res) => {
     const id = req.params.id;
-    const { nome, rg, cpf, endereco, cidade, telefone,email, } = req.body;
+    const { nome, rg, cpf, endereco, cidade, telefone, email, senha } = req.body;
 
     const clienteData = {
         nome,
@@ -213,8 +213,13 @@ app.patch("/cliente/:id", async (req, res) => {
         cidade,
         telefone,
         email,
-        senha: encrypt(senha)
     };
+
+    // Se a senha estiver presente, criptografe-a
+    if (senha) {
+        const salt = await bcrypt.genSalt(10);
+        clienteData.senha = await bcrypt.hash(senha, salt);
+    }
 
     try {
         const updateResult = await Cliente.updateOne({ _id: id }, clienteData);
@@ -226,6 +231,7 @@ app.patch("/cliente/:id", async (req, res) => {
         res.status(500).json({ erro: "Erro ao atualizar cliente." });
     }
 });
+
 
 // Update Loja
 app.patch("/loja/:id", async (req, res) => {
