@@ -1,12 +1,14 @@
 const mongoose = require("mongoose");
 
 const clienteSchema = new mongoose.Schema({
-    nome: { type: String, required: true },
-    rg: { type: String, required: true },
-    cpf: { type: String, required: true },
+    nome: String,
+    rg: String,
+    cpf: String,
     endereco: String,
     cidade: String,
-    telefone: String
+    telefone: String,
+    email: String,
+    senha: String, 
 });
 
 const Cliente = mongoose.model("Cliente", clienteSchema);

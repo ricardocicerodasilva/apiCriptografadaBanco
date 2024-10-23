@@ -1,46 +1,82 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const { default: mongoose } = require('mongoose');
 const crypto = require('crypto');
+
+const jwt = require('jsonwebtoken'); // Para gerar e verificar tokens JWT
 const Cliente = require('./models/Cliente');
 const Loja = require('./models/Loja');
 const Produto = require('./models/Produto');
 const app = express();
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 
-// Função para criptografar dados
-const encrypt = (text) => {
-    const cipher = crypto.createCipher('aes-256-cbc', 'sua-senha-secreta'); // Use uma senha segura
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return encrypted;
-};
+
+
+app.use(
+    express.urlencoded({
+        extended: true
+    })
+)
+
+app.use(express.json())
+
+
 
 // Rota inicial
 app.get('/', (req, res) => {
     res.json({ message: "Servidor rodando!" });
 });
 
-// Create Cliente
-app.post("/cliente", async (req, res) => {
-    const { nome, rg, cpf, endereco, cidade, telefone } = req.body;
+app.post('/cliente', async (req, res) => {
+    const { nome, rg, cpf, endereco, cidade, telefone,email,senha } = req.body;
 
-    const clienteData = {
-        nome,
-        rg: encrypt(rg),
-        cpf: encrypt(cpf),
+    // Criptografar a senha
+    const salt = await bcrypt.genSalt(10);
+    const senhaCriptografada = await bcrypt.hash(senha, salt);
+
+    const cliente = {
+          nome,
+        rg,
+        cpf,
         endereco,
         cidade,
-        telefone
+        telefone,
+        email,
+        senha: senhaCriptografada,
     };
 
     try {
-        await Cliente.create(clienteData);
-        res.status(201).json({ message: "Cliente cadastrado!" });
+        await Cliente.create(cliente);
+        res.status(200).json({ message: "cliente inserido no sistema" });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ erro: "Erro ao cadastrar cliente." });
+        res.status(500).json({ erro: error });
+    }
+});
+
+//endpoint de login
+
+
+app.post('/login', async (req, res) => {
+    const { email, senha } = req.body;
+
+    try {
+        // Encontrar o usuário pelo email
+        const cliente = await Cliente.findOne({ email });
+        if (!cliente) {
+            return res.status(400).json({ message: 'cliente não encontrado!' });
+        }
+
+        // Verificar a senha
+        const senhaValida = await bcrypt.compare(senha, cliente.senha);
+        if (!senhaValida) {
+            return res.status(400).json({ message: 'Senha inválida!' });
+        }
+
+        // Criar um token (opcional)
+        const token = jwt.sign({ id: cliente._id }, 'seu_segredo', { expiresIn: '1h' });
+
+        res.status(200).json({ message: 'Login realizado com sucesso!', token });
+    } catch (error) {
+        res.status(500).json({ erro: error.message });
     }
 });
 
@@ -167,15 +203,17 @@ app.get("/produto/:id", async (req, res) => {
 // Update Cliente
 app.patch("/cliente/:id", async (req, res) => {
     const id = req.params.id;
-    const { nome, rg, cpf, endereco, cidade, telefone } = req.body;
+    const { nome, rg, cpf, endereco, cidade, telefone,email, } = req.body;
 
     const clienteData = {
         nome,
-        rg: encrypt(rg),
-        cpf: encrypt(cpf),
+        rg,
+        cpf,
         endereco,
         cidade,
-        telefone
+        telefone,
+        email,
+        senha: encrypt(senha)
     };
 
     try {
